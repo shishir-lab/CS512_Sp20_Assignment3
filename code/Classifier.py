@@ -34,7 +34,7 @@ class LSTMClassifier(nn.Module):
         '''need to be implemented'''
         if mode == 'plain':
             # chain up the layers
-            normalized = self.normalize(inputs) # normalize the inputs
+            normalized = self.normalize(inputs, dim=2) # normalize the inputs
             # change dimension to batch_size x channel_size(12) x sequence_length
             normalized = normalized.permute(0,2,1) 
             embedding = self.conv(normalized) # conv layer
