@@ -10,7 +10,7 @@ import ProxLSTM as pro
 
 class LSTMClassifier(nn.Module):
     def __init__(self, batch_size, output_size, hidden_size, input_size,
-                 embedding_dim=64, kernel_size=3, stride=3):
+                 embedding_dim=64, kernel_size=3, stride=3, epsilon=0.1):
         super(LSTMClassifier, self).__init__()
         
 
@@ -22,6 +22,10 @@ class LSTMClassifier(nn.Module):
         self.relu = nn.ReLU()
         self.lstm = nn.LSTMCell(embedding_dim, hidden_size)
         self.linear = nn.Linear(self.hidden_size, self.output_size)
+        self.eplison = epsilon
+        # self.h_0 = torch.nn.parameter.Parameter(torch.rand(batch_size, self.hidden_size), requires_grad=True)
+        # self.c_0 = torch.nn.parameter.Parameter(torch.rand(batch_size, self.hidden_size), requires_grad=True)
+
 
 
         
@@ -42,16 +46,31 @@ class LSTMClassifier(nn.Module):
             _,_,num_seq = activated.shape #LSTM layers
             for i in range(num_seq):
                 if i == 0:
-                    hi, ci = self.lstm(activated[:,:,i])
+                    hi, ci = self.lstm(activated[:,:,i])#, (self.h_0, self.c_0)) 
                 else:
                     hi, ci = self.lstm(activated[:,:,i], (hi,ci))
                     
             fullyconnected = self.linear(hi) #fully connected from last LSTM layer
             return fullyconnected
                 
-
         if mode == 'AdvLSTM':
-            pass
+            normalized = self.normalize(inputs, dim=2) # normalize the inputs
+            # change dimension to batch_size x channel_size(12) x sequence_length
+            normalized = normalized.permute(0,2,1) 
+            embedding = self.conv(normalized) # conv layer
+            self.lstmInput = self.relu(embedding) # relu activation
+            self.lstmInput.retain_grad()
+            _,_,num_seq = self.lstmInput.shape #LSTM layers
+            self.lstmInput = self.lstmInput + self.eplison * r
+            for i in range(num_seq):
+                if i == 0:
+                    hi, ci = self.lstm(self.lstmInput[:,:,i])#, (self.h_0, self.c_0)) 
+                else:
+                    hi, ci = self.lstm(self.lstmInput[:,:,i], (hi,ci))
+                    
+            fullyconnected = self.linear(hi) #fully connected from last LSTM layer
+            return fullyconnected
+
                 # chain up the layers
               # different from mode='plain', you need to add r to the forward pass
               # also make sure that the chain allows computing the gradient with respect to the input of LSTM

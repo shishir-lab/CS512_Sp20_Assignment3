@@ -14,12 +14,9 @@ input_size = 12
 
 batch_size = 27
 hidden_size = 50  # LSTM output size of each time step
-basic_epoch = 150
-Adv_epoch = 100
+basic_epoch = 50
+Adv_epoch = 50
 Prox_epoch = 100
-
-
-
 
 
 def clip_gradient(model, clip_value):
@@ -44,11 +41,11 @@ def train_model(model, train_iter, mode):
         prediction = model(input, r,batch_size = input.size()[0], mode = mode)
         loss = loss_fn(prediction, target)
         if mode == 'AdvLSTM':
-
-
             ''' Add adversarial training term to loss'''
-
-
+            r = compute_perturbation(loss, model)
+            adv_prediction = model(input, r, batch_size = input.size()[0], mode = mode)
+            adv_loss = loss_fn(adv_prediction, target)
+            loss = loss + adv_loss
 
         num_corrects = (torch.max(prediction, 1)[1].view(target.size()).data == target.data).float().sum()
         acc = 100.0 * num_corrects/(input.size()[0])
@@ -85,15 +82,15 @@ def eval_model(model, test_iter, mode):
 
 
 
-# def compute_perturbation(loss, model):
+def compute_perturbation(loss, model):
+    # # Use autograd
+    grads = grad(loss, model.lstmInput, create_graph=True)
+    g = grads[0].permute(0,2,1).detach()    
+    r = g/F.normalize(g, dim=2, p=2) # batch_size x seq x embed_dim
+    return r.permute(0,2,1) #batch_size x embed_dim x seq to match lstmInput
 
+    
 
-
-#     '''need to be implemented'''
-#     # Use autograd
-
-
-#     return the value of g / ||g||
 
 
 print("Traing Model")
@@ -101,7 +98,7 @@ print("Traing Model")
 print("Loading Data")
 train_iter, test_iter = load_data.load_data('JV_data.mat', batch_size)
 print("Training Plain version")
-model = LSTMClassifier(batch_size, output_size, hidden_size, input_size)
+model = LSTMClassifier(batch_size, output_size, hidden_size, input_size, epsilon=0.1)
 loss_fn = F.cross_entropy
 
 for epoch in range(basic_epoch):
@@ -121,7 +118,7 @@ for epoch in range(basic_epoch):
 
 # # 3. load the saved model to Adv_model, which is an instance of LSTMClassifier
 #     Adv_model = ..., or other implementations
-
+Adv_model = model
 
 
 
@@ -137,9 +134,9 @@ for epoch in range(basic_epoch):
 
 # ''' Training Adv_model'''
 
-# for epoch in range(Prox_epoch):
-#     optim = torch.optim.Adam(filter(lambda p: p.requires_grad, Adv_model.parameters()), lr=5e-4, weight_decay=1e-4)
-#     train_loss, train_acc = train_model(Adv_model, train_iter, mode = 'AdvLSTM')
-#     val_loss, val_acc = eval_model(Adv_model, test_iter, mode ='AdvLSTM')
-#     print(f'Epoch: {epoch+1:02}, Train Loss: {train_loss:.3f}, Train Acc: {train_acc:.2f}%, Test Loss: {val_loss:3f}, Test Acc: {val_acc:.2f}%')
+for epoch in range(Adv_epoch):
+    optim = torch.optim.Adam(filter(lambda p: p.requires_grad, Adv_model.parameters()), lr=5e-4, weight_decay=1e-4)
+    train_loss, train_acc = train_model(Adv_model, train_iter, mode = 'AdvLSTM')
+    val_loss, val_acc = eval_model(Adv_model, test_iter, mode ='AdvLSTM')
+    print(f'Epoch: {epoch+1:02}, Train Loss: {train_loss:.3f}, Train Acc: {train_acc:.2f}%, Test Loss: {val_loss:3f}, Test Acc: {val_acc:.2f}%')
 
