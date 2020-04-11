@@ -17,6 +17,7 @@ hidden_size = 50  # LSTM output size of each time step
 basic_epoch = 50
 Adv_epoch = 50
 Prox_epoch = 100
+saved_model_name = 'basic_lstm_model'
 
 
 def clip_gradient(model, clip_value):
@@ -109,16 +110,20 @@ for epoch in range(basic_epoch):
 
 
 
-# ''' Save and Load model'''
+''' Save and Load model'''
 
-# # 1. Save the trained model from the basic LSTM
+# 1. Save the trained model from the basic LSTM
+torch.save(model.state_dict(), 'basic_lstm_model')
 
-# # 2. load the saved model to Prox_model, which is an instance of LSTMClassifier
-#     Prox_model = ..., or other implementations
 
-# # 3. load the saved model to Adv_model, which is an instance of LSTMClassifier
-#     Adv_model = ..., or other implementations
-Adv_model = model
+# 2. load the saved model to Prox_model, which is an instance of LSTMClassifier
+Prox_model = LSTMClassifier(batch_size, output_size, hidden_size, input_size)
+Prox_model.load_state_dict(torch.load(saved_model_name), strict=False)
+
+
+# 3. load the saved model to Adv_model, which is an instance of LSTMClassifier
+Adv_model = LSTMClassifier(batch_size, output_size, hidden_size, input_size)
+Adv_model.load_state_dict(torch.load(saved_model_name), strict=False)
 
 
 
