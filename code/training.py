@@ -12,9 +12,9 @@ input_size = 12
 
 # Hyperparameters, feel free to tune
 
-batch_size = 27
-hidden_size = 50  # LSTM output size of each time step
-basic_epoch = 50
+batch_size = 32
+hidden_size = 70  # LSTM output size of each time step
+basic_epoch = 100
 Adv_epoch = 50
 Prox_epoch = 100
 saved_model_name = 'basic_lstm_model'
@@ -92,7 +92,7 @@ def compute_perturbation(loss, model):
 
     
 
-
+best_basic=None
 
 print("Traing Model")
 ''' Training basic model '''
@@ -106,14 +106,18 @@ for epoch in range(basic_epoch):
         optim = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=1e-3, weight_decay=1e-3)
         train_loss, train_acc = train_model(model, train_iter, mode = 'plain')
         val_loss, val_acc = eval_model(model, test_iter, mode ='plain')
-        print(f'Epoch: {epoch+1:02}, Train Loss: {train_loss:.3f}, Train Acc: {train_acc:.2f}%, Test Loss: {val_loss:3f}, Test Acc: {val_acc:.2f}%')
-
-
+        if best_basic==None:
+            best_basic=val_acc
+            torch.save(model.state_dict(), saved_model_name)
+        elif val_acc>best_basic:
+            best_basic=val_acc
+            torch.save(model.state_dict(), saved_model_name)
+        print(f'Epoch: {epoch+1:02}, Train Loss: {train_loss:.3f}, Train Acc: {train_acc:.2f}%, Test Loss: {val_loss:3f}, Test Acc: {val_acc:.2f}%, Best: {best_basic:.2f}%')
 
 ''' Save and Load model'''
 
 # 1. Save the trained model from the basic LSTM
-torch.save(model.state_dict(), 'basic_lstm_model')
+#torch.save(model.state_dict(), 'basic_lstm_model')
 
 
 # 2. load the saved model to Prox_model, which is an instance of LSTMClassifier
@@ -138,10 +142,18 @@ Adv_model.load_state_dict(torch.load(saved_model_name), strict=False)
 
 
 # ''' Training Adv_model'''
-
+best_adv=None
 for epoch in range(Adv_epoch):
     optim = torch.optim.Adam(filter(lambda p: p.requires_grad, Adv_model.parameters()), lr=5e-4, weight_decay=1e-4)
     train_loss, train_acc = train_model(Adv_model, train_iter, mode = 'AdvLSTM')
     val_loss, val_acc = eval_model(Adv_model, test_iter, mode ='AdvLSTM')
-    print(f'Epoch: {epoch+1:02}, Train Loss: {train_loss:.3f}, Train Acc: {train_acc:.2f}%, Test Loss: {val_loss:3f}, Test Acc: {val_acc:.2f}%')
+    
+    if best_adv==None:
+        best_adv=val_acc
+        torch.save(Adv_model.state_dict(), 'best_adv_model')
+    elif val_acc>best_adv:
+        best_adv=val_acc
+        torch.save(Adv_model.state_dict(), 'best_adv_model')
+    
+    print(f'Epoch: {epoch+1:02}, Train Loss: {train_loss:.3f}, Train Acc: {train_acc:.2f}%, Test Loss: {val_loss:3f}, Test Acc: {val_acc:.2f}%, Best: {best_adv:.2f}%')
 
