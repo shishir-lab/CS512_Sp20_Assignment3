@@ -123,7 +123,7 @@ for epoch in range(basic_epoch):
 
 # 2. load the saved model to Prox_model, which is an instance of LSTMClassifier
 Prox_model = LSTMClassifier(batch_size, output_size, hidden_size, input_size)
-Prox_model.load_state_dict(torch.load(saved_model_name), strict=False)
+# Prox_model.load_state_dict(torch.load(saved_model_name), strict=False)
 
 
 # 3. load the saved model to Adv_model, which is an instance of LSTMClassifier
@@ -132,12 +132,21 @@ Adv_model.load_state_dict(torch.load(saved_model_name), strict=False)
 
 
 
-# ''' Training Prox_model'''
-# for epoch in range(Adv_epoch):
-#     optim = torch.optim.Adam(filter(lambda p: p.requires_grad, Prox_model.parameters()), lr=1e-3, weight_decay=1e-3)
-#     train_loss, train_acc = train_model(Prox_model, train_iter, mode = 'ProxLSTM')
-#     val_loss, val_acc = eval_model(Prox_model, test_iter, mode ='ProxLSTM')
-#     print(f'Epoch: {epoch+1:02}, Train Loss: {train_loss:.3f}, Train Acc: {train_acc:.2f}%, Test Loss: {val_loss:3f}, Test Acc: {val_acc:.2f}%')
+print(''' Training Prox_model''')
+saved_model_name = "prox_lstm_model"
+best_prox=None
+for epoch in range(Prox_epoch):
+    optim = torch.optim.Adam(filter(lambda p: p.requires_grad, Prox_model.parameters()), lr=1e-3, weight_decay=1e-3)
+    train_loss, train_acc = train_model(Prox_model, train_iter, mode = 'ProxLSTM')
+    val_loss, val_acc = eval_model(Prox_model, test_iter, mode ='ProxLSTM')
+    if best_prox==None:
+        best_prox=val_acc
+        torch.save(model.state_dict(), saved_model_name)
+    elif val_acc>best_prox:
+        best_prox=val_acc
+        torch.save(model.state_dict(), saved_model_name)
+
+    print(f'Epoch: {epoch+1:02}, Train Loss: {train_loss:.3f}, Train Acc: {train_acc:.2f}%, Test Loss: {val_loss:3f}, Test Acc: {val_acc:.2f}%, Best: {best_prox:.2f}%')
 
 
 

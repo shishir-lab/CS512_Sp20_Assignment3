@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-import ProxLSTM as pro
+from ProxLSTM import ProximalLSTMCell
 
 
 class LSTMClassifier(nn.Module):
@@ -22,6 +22,7 @@ class LSTMClassifier(nn.Module):
         self.lstm = nn.LSTMCell(embedding_dim, hidden_size)
         self.linear = nn.Linear(self.hidden_size, self.output_size)
         self.eplison = epsilon
+        self.proxLSTM = ProximalLSTMCell(self.lstm, self.eplison)
         # self.h_0 = torch.nn.parameter.Parameter(torch.rand(batch_size, self.hidden_size), requires_grad=True)
         # self.c_0 = torch.nn.parameter.Parameter(torch.rand(batch_size, self.hidden_size), requires_grad=True)
 
@@ -75,5 +76,26 @@ class LSTMClassifier(nn.Module):
               # different from mode='plain', you need to add r to the forward pass
               # also make sure that the chain allows computing the gradient with respect to the input of LSTM
         if mode == 'ProxLSTM':
-            pass
+            # chain up the layers
+            with torch.enable_grad(): #enable grad explictily for using autograd.grad()
+                normalized = self.normalize(inputs, dim=2) # normalize the inputs
+                # change dimension to batch_size x channel_size(12) x sequence_length
+                normalized = normalized.permute(0,2,1) 
+                embedding = self.conv(normalized) # conv layer
+                activated = self.relu(embedding) # relu activation
+                _,_,num_seq = activated.shape #LSTM layers
+                # activated.retain_grad()
+                # activated.register_hook(print)
+                for i in range(num_seq):
+                    if i == 0:
+                        hi, ci = self.proxLSTM(activated[:,:,i])#, (self.h_0, self.c_0)) 
+                    else:
+                        if i == num_seq-1:
+                            hi, ci = self.proxLSTM(activated[:,:,i], (hi,ci), last=True)
+                            # avoiding useless computation for last layer
+                        else:
+                            hi, ci = self.proxLSTM(activated[:,:,i], (hi,ci))
+                fullyconnected = self.linear(hi) #fully connected from last LSTM layer
+                return fullyconnected
+            # pass
                 # chain up layers, but use ProximalLSTMCell here
