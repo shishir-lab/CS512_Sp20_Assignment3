@@ -7,7 +7,6 @@ from torch.nn import functional as F
 import ProxLSTM as pro
 
 
-
 class LSTMClassifier(nn.Module):
     def __init__(self, batch_size, output_size, hidden_size, input_size,
                  embedding_dim=64, kernel_size=3, stride=3, epsilon=0.1):
@@ -61,6 +60,7 @@ class LSTMClassifier(nn.Module):
             self.lstmInput = self.relu(embedding) # relu activation
             self.lstmInput.retain_grad()
             _,_,num_seq = self.lstmInput.shape #LSTM layers
+            #print(r)
             self.lstmInput = self.lstmInput + self.eplison * r
             for i in range(num_seq):
                 if i == 0:

@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.autograd import grad
 import torch.optim as optim
 from Classifier import LSTMClassifier
+from matplotlib import pyplot as plt
 
 # Constants
 output_size = 9   # number of class
@@ -94,12 +95,12 @@ def compute_perturbation(loss, model):
 
 best_basic=None
 
-print("Traing Model")
+print("Training Model")
 ''' Training basic model '''
 print("Loading Data")
 train_iter, test_iter = load_data.load_data('JV_data.mat', batch_size)
 print("Training Plain version")
-model = LSTMClassifier(batch_size, output_size, hidden_size, input_size, epsilon=0.1)
+model = LSTMClassifier(batch_size, output_size, hidden_size, input_size, epsilon=0.5)
 loss_fn = F.cross_entropy
 
 for epoch in range(basic_epoch):
@@ -140,20 +141,5 @@ Adv_model.load_state_dict(torch.load(saved_model_name), strict=False)
 
 
 
-
 # ''' Training Adv_model'''
-best_adv=None
-for epoch in range(Adv_epoch):
-    optim = torch.optim.Adam(filter(lambda p: p.requires_grad, Adv_model.parameters()), lr=5e-4, weight_decay=1e-4)
-    train_loss, train_acc = train_model(Adv_model, train_iter, mode = 'AdvLSTM')
-    val_loss, val_acc = eval_model(Adv_model, test_iter, mode ='AdvLSTM')
-    
-    if best_adv==None:
-        best_adv=val_acc
-        torch.save(Adv_model.state_dict(), 'best_adv_model')
-    elif val_acc>best_adv:
-        best_adv=val_acc
-        torch.save(Adv_model.state_dict(), 'best_adv_model')
-    
-    print(f'Epoch: {epoch+1:02}, Train Loss: {train_loss:.3f}, Train Acc: {train_acc:.2f}%, Test Loss: {val_loss:3f}, Test Acc: {val_acc:.2f}%, Best: {best_adv:.2f}%')
-
+# '''In adv_training.py ''' #
